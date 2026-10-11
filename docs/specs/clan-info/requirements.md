@@ -1,0 +1,9 @@
+# Clan information requirements
+
+`/info-clan` accepts an optional autocompleted configured clan ID and otherwise uses the enabled default. Show name, master, member count/capacity, creation date, rank name/icon/progress, EXP and match statistics. Values not supplied by a verified source display N/A.
+
+Place the original `clan-logo.png` first, followed by the clan name as the largest heading. Group master, members and creation date in a Clan details block. Place the clan rank below those details, directly above Rank progress: an inline application emoji of the original badge followed by the website's rank name. Reuse managed `pb_clan_rank_<image number>` emojis; if preparation fails, retain a link to the original badge beside the name. Show a compact progress bar beside the Rank progress label and retain the exact website percentage; missing progress is N/A without an invented empty bar. Display total matches plus win/loss counts and the website's corresponding percentages in an Overall match record block. Keep the source/timestamp footer smaller than the attributes.
+
+Fetch through Axios and parse the provided profile HTML with Cheerio. Preserve the configured clan identifier. Render only the correct layered clan mark with Playwright, original styles/assets and element screenshot; attach the PNG. Cache results and reuse/close browser resources. Defer interactions and resolve errors clearly. Logo failure must allow other profile information to be displayed.
+
+The corrected public link confirms the Total Stat selectors. Display its counts and supplied percentages; outcome definitions remain unverified, so do not calculate replacement rates. Local request spacing is optional and defaults to zero; consecutive fresh requests are permitted. Genuine access restrictions and HTTP 429 / Retry-After pauses still apply.

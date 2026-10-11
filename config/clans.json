@@ -1,0 +1,29 @@
+{
+  "defaultClan": "hepatica",
+  "clans": [
+    {
+      "id": "hepatica",
+      "name": "Hepatica",
+      "uniqueId": "c0g2TkxCOWZqMStTUDhHQWVCT3E1aFZDUTFqOEpGdUFBZGRaaVRRZ2xDOFl3WnY3WVhTWXhFY3F0NUxtSFJrVw==",
+      "enabled": true
+    },
+    {
+      "id": "decorum",
+      "name": "Decorum",
+      "uniqueId": "c0g2TkxCOWZqMStTUDhHQWVCT3E1dHpYbUI4SFMvcDZSd0R1U1diNmIwSkFWQjR5aXVYVHA1b0RERnpBWjBZSg==",
+      "enabled": true
+    },
+    {
+      "id": "jinxpro",
+      "name": "JinxPro",
+      "uniqueId": "c0g2TkxCOWZqMStTUDhHQWVCT3E1a2xEaGZ2UzZjYTRwZjJLSFRTc01GUT0=",
+      "enabled": true
+    },
+    {
+      "id": "arikanami",
+      "name": "ARIKANAMI",
+      "uniqueId": "c0g2TkxCOWZqMStTUDhHQWVCT3E1bjNXTVlpSHlXbXgzWUZiQzhla0VERT0=",
+      "enabled": true
+    }
+  ]
+}
