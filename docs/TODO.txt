@@ -1,0 +1,33 @@
+TODO — Planned features
+
+[ ] 1. Scheduled clan member tracking
+    Goal: Detect changes in a configured clan's roster over time.
+    [ ] Decide which clans to track, the checking interval, and how changes should be reported.
+    [ ] Compare complete roster snapshots to detect members joining or leaving.
+    [ ] Use verified member identifiers to distinguish a nickname change from a join/leave; track rank changes only when supported by verified icons.
+    [ ] Save a lightweight baseline across restarts and treat the first successful fetch as the baseline.
+    [ ] Prevent overlapping checks and duplicate reports. Failed or incomplete fetches must keep the previous baseline and must not report false departures.
+
+[ ] 2. Webstore fetching
+    Goal: Retrieve and present useful information from the official Point Blank webstore.
+    [ ] Confirm the exact webstore URL, publicly accessible data, and intended command/output.
+    [ ] Define the required fields, such as item name, price/currency, availability, and item link, based on the actual source.
+    [ ] Keep HTTP fetching, parsing, caching, and Discord presentation separate.
+    [ ] Show when data was fetched; handle missing fields and unavailable items clearly.
+    [ ] Verify selectors and add offline fixtures before implementation. Handle login/CAPTCHA and upstream rate limits explicitly.
+
+[ ] 3. Direct nickname lookup for /info-member
+    Goal: Look up a specific player through individual ranking search, without requiring a match in the configured clan roster.
+    [ ] Verify the proposed lookup flow and the actual response fields:
+        Search: https://www.pointblank.id/ranking/individual?termtype=3&keyword=<nickname>
+        Detail: https://www.pointblank.id/clan/detail?div=1&env=<uniqueId>
+    [ ] Extract the uniqueId from the matched search result and confirm that it is the identifier accepted by the detail endpoint. Never construct or guess it.
+    [ ] Prefer an exact nickname match; handle ambiguous results and no matches clearly. Preserve case, punctuation, spaces, Unicode, and plus signs.
+    [ ] Build query parameters with URLSearchParams and decode encoded identifiers once at the HTTP boundary.
+    [ ] Use only verified rank names/icons and statistics; missing numeric values remain null internally and N/A in the reply.
+    [ ] Keep /info-member without a nickname as the existing clan roster view. Decide how the optional clan argument should behave during direct lookup.
+
+[ ] For each feature when implementation starts
+    [ ] Update the relevant requirements/design/tasks and README to describe the final behavior.
+    [ ] Add offline tests for successful fetches, missing data, failures, and changed required selectors.
+    [ ] Run lint, typecheck, tests, and build; run local browser tests if rendering changes.
