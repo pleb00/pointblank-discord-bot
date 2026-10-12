@@ -32,7 +32,7 @@ describe('detail normalization', () => {
   it('maps numeric fields and obtains icon only from the roster', () => {
     expect(normalizeMemberDetail(detailJson, member)).toEqual({
       nickname: 'pLebb', exp: 9040962, kills: 25484, deaths: 42600, headshots: 11851,
-      rankIconUrl: member.rankIconUrl, clanName: '`Hepatica',
+      rankIconUrl: member.rankIconUrl, clanName: '`Hepatica', clanMemberCount: 85, clanRanking: 272183,
     });
   });
   it('normalizes missing or invalid fields to null if useful data remains', () => {

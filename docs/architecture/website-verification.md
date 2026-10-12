@@ -1,5 +1,15 @@
 # Website verification record
 
+## Webstore verification, October 12, 2026
+
+Unauthenticated Axios requests returned usable HTML for all four `/webstore/more/` categories: best (Trending), new, sale and star. The final integration check used the actual PointBlankClient and WebstoreService: Trending returned ten products with eight pages; New returned five products with one page; Sale returned ten products with six pages; Star returned ten products with seven pages and ten explicit numeric ratings. Trending page two returned ten different products, and a separate observed request to its last page returned two products with disabled Next/Last navigation. An initial New connection reset was followed by a successful request; no login, purchase or wishlist endpoint was fetched.
+
+Full public pages define login-only shopping action functions. The original access guard treated their uninvoked login alerts/redirects as an inaccessible document. The catalogue-specific check now excludes only the exact five observed declarations from inspection; invoked actions, document redirects, login forms/markers, CAPTCHA and HTTP/access failures still raise clear errors. Scripts are never executed. Regression fixtures retain the declarations separately from minimized catalogue fixtures.
+
+Verified product selectors, currency asset paths and pagination contracts are documented in `docs/specs/webstore/design.md`. Currency icons identify PB Cash, Golden Ticket and Star Ticket; unrecognized values remain null/N/A. `tests/fixtures/webstore.provenance.md` distinguishes observed catalogue excerpts, the supplied index excerpt and synthetic variations. Live HTTP verification does not confirm the Discord command's display or registration.
+
+Final validation on Node.js 24.21.0 passed ESLint, strict typechecking, all 245 offline unit tests across 17 files and production compilation. No renderer changes were made.
+
 Date: October 11, 2026, Asia/Jakarta. Development host: Windows. Verification used a direct unauthenticated PowerShell Invoke-WebRequest with the exact supplied clan identifier constructed using percent encoding.
 
 ## Initial observations with the original identifier
@@ -21,13 +31,25 @@ The Total Stat panel is `.clan_section .record .clan_record > .section`, titled 
 
 The profile `.top .inner` ancestor contains exactly one layered mark, while a popup elsewhere contains another `.logo`. Chromium successfully rendered the profile mark from captured public HTML plus original site CSS/assets into a 212×212 PNG, which was visually inspected. The CSS imports external Google fonts; blocked optional font styles no longer cause a false logo error. No repeated clan-page navigation was needed for rendering.
 
-The player-detail response has not been reverified; only the publicly extracted roster and the page's `/clan/detail` GET integration are confirmed. No login, CAPTCHA bypass or authenticated scraping was used.
+At this October 11 checkpoint, the player-detail response had not been reverified; only the publicly extracted roster and the page's `/clan/detail` GET integration were confirmed. No login, CAPTCHA bypass or authenticated scraping was used.
+
+## Individual nickname search — October 12, 2026, Asia/Jakarta
+
+An unauthenticated GET to `/ranking/individual` with `termtype=3` and `keyword=pLebb` returned HTTP 200, `text/html; charset=UTF-8`, and usable ranking HTML. The response contained one `.nrank_table > .r_tr` result. `.r_td.name > a[data-env][data-nick]` supplied the exact nickname and encoded player identifier. `.r_td.win` supplied game ranking position, `.r_td.rank > .txt` supplied the rank name and `.rank_img img` original rank image, and `.r_td.exp > .txt` supplied total EXP. The original icon was `rank_46.png`. The user also supplied a row showing ranking 71,209, rank Brigadier and total EXP 7,178; numeric examples are not substituted for the live response.
+
+A separate verification request decoded the extracted identifier once and serialized it with URLSearchParams for `/clan/detail?div=1&env=...`. It returned usable Exp, Kill, Death and Headshot values and a clan name. No player identifier, query URL or raw payload was logged. `/info-player` now uses that verified two-step flow, retaining rank information from HTML and retrieving player/clan counters from JSON. It calculates K/D and headshot percentage and groups the reply into Player Info and Clan Info.
+
+After the user's detail continuation, a separate GET through PointBlankClient to the supplied example identifier also returned usable Exp, Kill, Death, Headshot, ClanTroops and ClanExpRank, with a clan name. Both calculated ratios were available. This verified detail availability without asserting that the example identifier belongs to the earlier search nickname. Only field-availability metadata was printed; no raw response or identifier was logged. Offline fixture tests still use the supplied example JSON rather than that live response.
+
+Searching the incomplete nickname `pLeb` returned HTTP 200 with no result rows and `.nrank_table > .nodata_n` containing `Our search has no matches!`. The parser recognizes this explicit marker; an absent table, changed row identity or unrecognized empty structure fails clearly. The implemented parser was also exercised locally against the captured live success and no-match HTML, without another upstream request.
+
+No authentication or CAPTCHA bypass was attempted. Captures remain outside tracked source. The search query always uses termtype=3; a result's data-termtype is not used to select the query type.
 
 ## Implementation evidence
 
-Profile selectors, four logo layers, `.logo` classes and roster attributes were supplied as examples and then confirmed on the corrected public page. The roster container, Total Stat selectors and nearest-ancestor logo selection are now verified. Count mismatches continue to detect changed/incomplete rosters. Example player JSON remains fixture-supported without claiming a confirmed live player response.
+Profile selectors, four logo layers, `.logo` classes and roster attributes were supplied as examples and then confirmed on the corrected public page. The roster container, Total Stat selectors and nearest-ancestor logo selection are now verified. Count mismatches continue to detect changed/incomplete rosters. The player JSON fixture remains the supplied illustrative payload; a separate live player response was confirmed on October 12 without replacing that fixture.
 
-`tests/fixtures/clan.html` is synthetic and changes the example count to three to match the sample roster. `clan-total-statistics.html` is an observed Total Stat excerpt from the corrected public page. `member-detail.json` reproduces the supplied illustrative payload; no attribution to a real player is asserted. `login.html` is an excerpt observed with the original incomplete identifier. Browser tests use synthetic local SVG layers to test original HTML/CSS layering and element-only PNG capture.
+`tests/fixtures/clan.html` is synthetic and changes the example count to three to match the sample roster. `clan-total-statistics.html` is an observed Total Stat excerpt from the corrected public page. `member-detail.json` reproduces the earlier supplied illustrative payload; `player-detail.json` reproduces the user's later AutoWin example, with provenance documented alongside it. Neither fixture is a live capture or asserts a real player association with the synthetic search identity. `player-search.html` is synthetic markup based on the observed ranking structure and supplied row, with a synthetic identifier and the supplied nickname/ranking/rank/EXP. `player-search-empty.html` reproduces the observed no-match structure and message. `login.html` is an excerpt observed with the original incomplete identifier. Browser tests use synthetic local SVG layers to test original HTML/CSS layering and element-only PNG capture.
 
 Clan EXP stays null because its source remains unverified. Match statistics use the observed panel and its own displayed rates. `calculateOutcomeRates` is tested independently but is not invoked by the live parser until outcome definitions are established. Do not use player API ClanExpRank or Rank as substitute fields.
 

@@ -1,14 +1,17 @@
 # Member information acceptance
 
-- Optional clan selection routes both roster and individual views through validated config.
+- Registration and dispatch expose `/info-clan` with only optional clan, `/info-member` with only optional clan, and `/info-player` with only required nick. The old `/info-member nick` option is removed. Roster expiry messages point to `/info-member`; player search remains independent of clan membership.
 - `He`Cans13+TNG` and Unicode/space nicknames are preserved internally and safely escaped for Discord.
-- Encoded padding is decoded once; plus signs never become spaces and identifiers are never guessed.
-- Exact matches win, ambiguous folded matches request exact capitalization, missing members do not trigger detail calls.
-- Supplied illustrative detail fixture normalizes all four counters and retains the roster's rank icon, regardless of JSON Rank.
+- Search always uses termtype=3 and the exact supplied keyword through URLSearchParams, regardless of a row's data-termtype. The extracted identifier is preserved internally; the retained detail HTTP boundary decodes encoded padding once, preserves plus signs and never guesses identifiers.
+- Exact matches win, ambiguous folded matches request exact capitalization, and partial nicknames never select a longer result. The explicit no-match marker produces a not-found reply; missing/changed required selectors produce a structure error.
+- Supplied search row retains ranking 71,209, nickname pLebb and rank Brigadier with rank_46.png, regardless of detail JSON Rank. Popup rank icons are excluded. Only the matched identifier is passed to the GET detail client and is omitted from the returned presentation model.
+- The supplied illustrative detail fixture normalizes EXP 3,789,431, kills 21,053, deaths 11,687 and headshots 18,968; the reply displays K/D 1.80 and headshot ratio 90.10%. Clan Info displays AutoWin, 28 members and ranking 1,391,886. These fixtures do not claim the examples belong to one live player.
+- The embed has exactly two full-width sections, Player Info then Clan Info, with all requested metrics, the nickname title and original rank thumbnail. Text/mentions are escaped and grouped fields stay within Discord limits. Missing fields and undefined ratios show N/A; zero numerators with valid denominators produce 0.00 / 0.00%.
 - Partial malformed detail fields are N/A; entirely invalid payloads produce clear errors.
 - 200 generated members paginate within Discord embed limits; requesting user alone can navigate; boundary and expired buttons disable.
 - Roster ordering uses validated rank asset numbers descending numerically (100 before 10 before 9), retains website order for ties, and puts missing/untrusted ranks last. The source roster remains unchanged. Ordering persists across pages and expiry even when emojis are unavailable.
 - Roster rows place each actual rank emoji before the escaped bold nickname, with no numeric icon label or technical footer. Page changes and expiry retain the icons without additional preparation.
 - Existing application emojis are reused, duplicate/concurrent requests upload each original icon once, and failed uploads remain retryable. Missing/untrusted assets never trigger external requests. Link fallbacks remain within the embed limit for 20 long nicknames.
 - Incomplete/empty-unconfirmed rosters raise explicit errors. Confirmed zero-member clans show an empty roster.
-- All automated tests remain offline. The corrected public page confirms the complete roster and extracted member identifiers. Real detail responses and end-to-end Discord command acceptance remain pending.
+- Concurrent/repeated player requests reuse both search and detail caches. The two-step mocked GET workflow fixes termtype=3, div=1 and one-time decoding while preserving plus signs. Search/detail requests share Retry-After pauses with other data requests. HTTP/access failures remain retryable. Default request spacing stays zero.
+- All automated tests remain offline. Public search success, explicit no-match markup and a usable detail response from the extracted identifier were verified on October 12, 2026. End-to-end Discord command acceptance remains pending.

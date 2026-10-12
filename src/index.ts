@@ -4,6 +4,7 @@ import { loadEnvironment } from './config/env.js';
 import { handleInteraction } from './events/interaction.event.js';
 import { onReady } from './events/ready.event.js';
 import { stopRosters } from './commands/info-member.command.js';
+import { stopWebstores } from './commands/webstore.command.js';
 import { createLogger } from './utils/logger.js';
 import { publicError, safeError } from './utils/errors.js';
 
@@ -16,6 +17,7 @@ async function stop(): Promise<void> {
   if (stopping) return;
   stopping = true;
   stopRosters();
+  stopWebstores();
   client?.destroy();
   try { await closeResources?.(); }
   catch (error) { bootstrapLogger.warn(safeError(error), 'Resource cleanup failed'); }

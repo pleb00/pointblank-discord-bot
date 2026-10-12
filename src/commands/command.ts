@@ -6,11 +6,13 @@ import type { ClanService } from '../services/clan.service.js';
 import type { MemberService } from '../services/member.service.js';
 import type { LogoService } from '../services/logo.service.js';
 import type { RankEmojiService } from '../services/rank-emoji.service.js';
+import type { WebstoreService } from '../services/webstore.service.js';
 
 export interface CommandContext {
   registry: ClanRegistry;
   clans: ClanService;
   members: MemberService;
+  webstore: WebstoreService;
   logos: LogoService;
   rankEmojis: RankEmojiService;
   env: Environment;

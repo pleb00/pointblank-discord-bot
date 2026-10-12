@@ -1,0 +1,10 @@
+# Webstore requirements
+
+- `/webstore` requires category selection with the choices Trending, New, Sale and Star. An optional positive `page` starts on that catalogue page, defaulting to one.
+- Fetch public category HTML from `/webstore/more/best`, `/webstore/more/new`, `/webstore/more/sale` or `/webstore/more/star`. Page two and later use URLSearchParams to add `page`. Do not fetch authenticated cart, wishlist or purchase endpoints.
+- Display the website's product names, original image thumbnails, product links, prices, known currency icons, tags, advertised discounts and explicit numeric ratings. Missing/unverified numbers and currencies remain null internally and N/A in Discord; do not calculate missing sale discounts or infer star ratings from CSS widths.
+- Show five product cards per screen in website order. Previous/Next must traverse every card, lazily retrieving neighbouring upstream pages only when crossing the current page's boundary. Derive page counts and boundaries from verified pagination markup.
+- Only the requester can navigate. Acknowledge buttons immediately, serialize edits, disable boundary buttons and expire navigation using `PAGINATION_TIMEOUT_SECONDS`. Expiry during a pending request must not re-enable controls. Old controls after restart return a private expiry message.
+- If navigation retrieval fails, retain the current page and explain the error privately; allow retrying while the controls remain active. Initial retrieval/layout/access failures produce a clear resolved reply.
+- Deduplicate and cache parsed category/page results in bounded memory for `WEBSTORE_CACHE_TTL_SECONDS` (default 120). Failures must remain retryable. Use the existing Axios client and shared request gate, including genuine HTTP 429 / Retry-After pauses and optional spacing disabled by default.
+- Parsing is pure Cheerio; no browser or database is needed. Data fetching, orchestration, parsing and Discord presentation remain separate. No credentials, raw upstream responses, query URLs or raw Axios errors appear in logs.

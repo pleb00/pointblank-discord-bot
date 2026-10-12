@@ -4,6 +4,7 @@ import type { IntegrationEnvironment } from '../config/env.js';
 import { AsyncCache } from '../utils/cache.js';
 import { AppError } from '../utils/errors.js';
 import { RequestGate } from '../utils/rate-limit.js';
+import { isWebstoreCategory, webstoreCategories, type WebstoreCategory } from '../models/webstore.model.js';
 
 export function clanUrl(baseUrl: string, uniqueId: string): URL {
   const url = new URL('/clan/myclan', baseUrl);
@@ -22,17 +23,51 @@ export function memberUrl(baseUrl: string, encodedEnv: string): URL {
   return url;
 }
 
+export function playerSearchUrl(baseUrl: string, nickname: string): URL {
+  const url = new URL('/ranking/individual', baseUrl);
+  url.searchParams.set('termtype', '3');
+  url.searchParams.set('keyword', nickname);
+  return url;
+}
+
+export function webstoreUrl(baseUrl: string, category: WebstoreCategory, page = 1): URL {
+  if (!isWebstoreCategory(category) || !Number.isSafeInteger(page) || page < 1) {
+    throw new AppError('CONFIG_INVALID', 'Choose a valid webstore category and a positive page number.');
+  }
+  const url = new URL(`/webstore/more/${webstoreCategories[category].endpoint}`, baseUrl);
+  if (page > 1) url.searchParams.set('page', String(page));
+  return url;
+}
+
 export function assertAccessibleHtml(html: string): void {
   if (/Login dibutuhkan|(?:document|window)\.location[^;]*["']\/login\b|<form[^>]+(?:action=["'][^"']*login)/i.test(html)) {
-    throw new AppError('ACCESS_REQUIRED', 'Point Blank requires login for this page. Public clan data is currently unavailable.');
+    throw new AppError('ACCESS_REQUIRED', 'Point Blank requires login for this page. Public data is currently unavailable.');
   }
   if (/g-recaptcha|h-captcha|cf-chl-|challenge-platform/i.test(html)) {
     throw new AppError('ACCESS_REQUIRED', 'Point Blank is requiring an access verification. Please try again later.');
   }
 }
 
+/** The public catalogue defines these login-only actions without invoking them. */
+export function assertAccessibleWebstoreHtml(html: string): void {
+  const actions = 'goPayletter|goWishList|goCart|goHistory|goLogin';
+  const declarations = new RegExp(`function\\s+(?:${actions})\\s*\\(\\s*\\)\\s*\\{\\s*alert\\(\\s*["'](?:Login dibutuhkan\\.|Login is required\\.)["']\\s*\\);\\s*document\\.location\\.href\\s*=\\s*["']/login/form["'];\\s*\\}`, 'g');
+  const call = new RegExp(`\\b(?:${actions})\\s*\\(`);
+  const inspected = html.replace(/(<script\b[^>]*>)([\s\S]*?)(<\/script>)/gi, (_match: string, opening: string, script: string, closing: string) => {
+    const remaining = script.replace(declarations, '');
+    // An invoked action could redirect the document; declarations alone cannot.
+    if (call.test(remaining)) throw new AppError('ACCESS_REQUIRED', 'Point Blank requires login for this page. Public data is currently unavailable.');
+    return `${opening}${remaining}${closing}`;
+  });
+  if (new RegExp(`on(?:load|error|pageshow)\\s*=\\s*["'][^"']*\\b(?:${actions})\\s*\\(`, 'i').test(inspected)) {
+    throw new AppError('ACCESS_REQUIRED', 'Point Blank requires login for this page. Public data is currently unavailable.');
+  }
+  assertAccessibleHtml(inspected);
+}
+
 export class PointBlankClient {
   private readonly details: AsyncCache<unknown>;
+  private readonly searches: AsyncCache<string>;
   private readonly http: AxiosInstance;
   private blockedUntil = 0;
 
@@ -43,6 +78,7 @@ export class PointBlankClient {
     http?: AxiosInstance,
   ) {
     this.details = new AsyncCache(env.MEMBER_CACHE_TTL_SECONDS * 1000);
+    this.searches = new AsyncCache(env.MEMBER_CACHE_TTL_SECONDS * 1000);
     this.http = http ?? axios.create({
       timeout: env.REQUEST_TIMEOUT_MS,
       maxRedirects: 3,
@@ -53,10 +89,24 @@ export class PointBlankClient {
       headers: { 'User-Agent': 'PointBlankClanDiscordBot/1.0', Accept: 'text/html, application/json' },
       beforeRedirect: options => {
         const base = new URL(env.POINTBLANK_BASE_URL);
-        if (options.hostname !== base.hostname || options.protocol !== 'https:' || !options.path?.startsWith('/clan/')) {
-          throw new AppError('ACCESS_REQUIRED', 'Point Blank redirected away from the public clan endpoint.');
+        const path = new URL(options.path ?? '/', base).pathname;
+        if (options.hostname !== base.hostname || options.protocol !== 'https:'
+          || (options.port && String(options.port) !== '443')
+          || (!path.startsWith('/clan/') && path !== '/ranking/individual'
+            && !Object.values(webstoreCategories).some(category => path === `/webstore/more/${category.endpoint}`))) {
+          throw new AppError('ACCESS_REQUIRED', 'Point Blank redirected away from the public data endpoints.');
         }
       },
+    });
+  }
+
+  getPlayerSearchHtml(nickname: string): Promise<string> {
+    const url = playerSearchUrl(this.env.POINTBLANK_BASE_URL, nickname);
+    return this.searches.get(url.href, async () => {
+      const html = await this.request(url, 'player-search');
+      assertAccessibleHtml(html);
+      if (!/<[a-z][\s\S]*>/i.test(html)) throw new AppError('UNEXPECTED_HTML', 'Point Blank returned an unexpected player search response.');
+      return html;
     });
   }
 
@@ -64,6 +114,13 @@ export class PointBlankClient {
     const html = await this.request(clanUrl(this.env.POINTBLANK_BASE_URL, uniqueId), 'clan');
     assertAccessibleHtml(html);
     if (!/<[a-z][\s\S]*>/i.test(html)) throw new AppError('UNEXPECTED_HTML', 'Point Blank returned an unexpected clan response.');
+    return html;
+  }
+
+  async getWebstoreHtml(category: WebstoreCategory, page = 1): Promise<string> {
+    const html = await this.request(webstoreUrl(this.env.POINTBLANK_BASE_URL, category, page), 'webstore');
+    assertAccessibleWebstoreHtml(html);
+    if (!/<[a-z][\s\S]*>/i.test(html)) throw new AppError('UNEXPECTED_HTML', 'Point Blank returned an unexpected webstore response.');
     return html;
   }
 
@@ -82,7 +139,7 @@ export class PointBlankClient {
     });
   }
 
-  private async request(url: URL, endpoint: 'clan' | 'member'): Promise<string> {
+  private async request(url: URL, endpoint: 'clan' | 'member' | 'player-search' | 'webstore'): Promise<string> {
     // Cache only a circuit-breaker flag for 401/403; never cache raw errors or credentials.
     if (this.blockedUntil > Date.now()) throw new AppError('ACCESS_REQUIRED', 'Point Blank requires access verification. Public data is currently unavailable.');
     for (let attempt = 0; attempt <= this.env.REQUEST_MAX_RETRIES; attempt++) {
