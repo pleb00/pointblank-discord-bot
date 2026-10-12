@@ -1,4 +1,4 @@
-# Point Blank Clan Discord Bot
+# Point Blank Discord Bot
 
 A modular TypeScript/Discord.js v14 bot for Point Blank Indonesia. It provides `/info-clan` profiles, paginated `/info-member` clan rosters, `/info-player nick:...` ranking information and `/webstore` product catalogues. Axios and Cheerio retrieve data; Playwright captures the original layered clan logo.
 
