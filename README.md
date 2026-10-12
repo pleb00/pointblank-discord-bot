@@ -1,6 +1,6 @@
 # Point Blank Clan Discord Bot
 
-A modular TypeScript/Discord.js v14 bot for configured Point Blank Indonesia clans. It provides `/info-clan` profiles, paginated `/info-member` clan rosters, and `/info-player nick:...` ranking information for any player found through individual ranking search. Axios and Cheerio retrieve data; Playwright captures the original layered clan logo.
+A modular TypeScript/Discord.js v14 bot for Point Blank Indonesia. It provides `/info-clan` profiles, paginated `/info-member` clan rosters, `/info-player nick:...` ranking information and `/webstore` product catalogues. Axios and Cheerio retrieve data; Playwright captures the original layered clan logo.
 
 **Live verification:** On October 11, 2026 (Asia/Jakarta), the corrected Hepatica link returned the clan profile and all 91 members without authentication. The original identifier was missing the `WnY3` segment; that different URL returned `Login dibutuhkan.` and a login redirect. The configured identifier now matches the corrected link. Total-statistics selectors and the layered logo are verified against the public page. On October 12, individual ranking search with `termtype=3` returned usable `pLebb` HTML; searching `pLeb` returned the site's explicit no-match response. The extracted player identifier was also verified against `/clan/detail?div=1`. `/info-player` now combines the search identity/rank with the detail JSON and calculated ratios. Clan profile EXP remains `N/A`.
 
@@ -47,12 +47,13 @@ The bot uses only the Guilds gateway intent. Nicknames and upstream strings are 
 | `REQUEST_MAX_QUEUE_WAIT_MS` | `2000` | Long waits produce a readable rate-limit message |
 | `CLAN_CACHE_TTL_SECONDS` | `300` | Shared clan profile/roster snapshot TTL |
 | `MEMBER_CACHE_TTL_SECONDS` | `120` | Player nickname search and detail response TTL |
+| `WEBSTORE_CACHE_TTL_SECONDS` | `120` | Parsed webstore category/page TTL |
 | `LOGO_CACHE_TTL_SECONDS` | `1800` | Rendered logo TTL |
 | `LOGO_TIMEOUT_MS` | `20000` | Browser operation timeout |
 | `PAGINATION_TIMEOUT_SECONDS` | `120` | Navigation lifetime, maximum 600 |
 | `ROSTER_PAGE_SIZE` | `15` | 10–20 members per page |
 
-Clan profiles/rosters are cached for five minutes, player nickname searches and details for two minutes and logos for thirty minutes by default. Cache expiry permits another fetch immediately when optional request spacing is disabled and no actual upstream rate limit is active. All caches are in memory, bounded, deduplicated, and lost on restart. HTTP/access failures are not cached, except a short 401/403 access circuit breaker. Retries remain bounded and honor upstream `Retry-After` instructions.
+Clan profiles/rosters are cached for five minutes, player nickname searches/details and webstore pages for two minutes, and logos for thirty minutes by default. Cache expiry permits another fetch immediately when optional request spacing is disabled and no actual upstream rate limit is active. All caches are in memory, bounded, deduplicated, and lost on restart. HTTP/access failures are not cached, except a short 401/403 access circuit breaker. Retries remain bounded and honor upstream `Retry-After` instructions.
 
 Optional request spacing and upstream rate-limit pauses apply to document/API retrieval and uncached logo navigation through the same request gate. Cached HTML is fulfilled at the original URL in Chromium; associated CSS/images/fonts load to render it, while scripts and other origins are blocked. Ordinary parsing never launches Chromium. Run a single process for this deployment; in-memory request gates are not coordinated across replicas or restarts.
 
@@ -81,7 +82,7 @@ npm run deploy:commands
 npm run dev
 ```
 
-Command registration replaces this application's commands in the selected guild/global scope with these three commands. Run `npm run deploy:commands` after upgrading to register `/info-clan {clan}`, `/info-member {clan}` and `/info-player {nick}`, then restart the bot (rebuild first when using `npm start`). `/info-member` keeps only its clan option; nickname lookup belongs to `/info-player`. Deploy again only when definitions change. Switching scopes does not delete definitions in the old scope; remove obsolete test registrations in the Developer Portal/API as appropriate. Global changes can take time to appear.
+Command registration replaces this application's commands in the selected guild/global scope with these four commands. Run `npm run deploy:commands` after upgrading to register `/info-clan {clan}`, `/info-member {clan}`, `/info-player {nick}` and `/webstore {category} {page?}`, then restart the bot (rebuild first when using `npm start`). `/info-member` keeps only its clan option; nickname lookup belongs to `/info-player`. Deploy again only when definitions change. Switching scopes does not delete definitions in the old scope; remove obsolete test registrations in the Developer Portal/API as appropriate. Global changes can take time to appear.
 
 `npm run check:discord` performs read-only Discord requests to confirm that the token belongs to `DISCORD_CLIENT_ID` and that the selected command endpoint is accessible. Deployment performs the same checks before changing commands. It does not change the target server or fall back to global registration after an access failure.
 
@@ -94,6 +95,10 @@ Command registration replaces this application's commands in the selected guild/
 | `/info-member` | Default clan roster sorted by rank number, highest first, with Previous/Next buttons |
 | `/info-member clan:hepatica` | Selected clan roster sorted by rank number, highest first |
 | `/info-player nick:pLebb` | Grouped player statistics, K/D and headshot ratios, plus clan name/member count/ranking |
+| `/webstore category:Trending` | Trending products with thumbnails, prices, product links and Previous/Next buttons |
+| `/webstore category:New` | Newly listed products |
+| `/webstore category:Sale` | Sale prices, original prices and advertised discounts |
+| `/webstore category:Star page:2` | Star Ratings catalogue, starting on upstream page two |
 
 Clan IDs autocomplete locally. `/info-clan` and `/info-member` accept only an optional configured clan, using the default if omitted. `/info-player` accepts only a required nickname. Nickname search requests `/ranking/individual` with fixed `termtype=3` and the complete nickname as `keyword`; it does not require clan membership. Missing characters do not produce a partial match. Exact nickname capitalization takes precedence; a unique case-insensitive match is accepted only if returned by the search. Punctuation, Unicode, spaces and plus signs are preserved. The matched HTML row supplies game ranking and rank name/icon. Its exact `data-env` is decoded once at the HTTP boundary and serialized through URLSearchParams for a GET to `/clan/detail?div=1&env=...`; identifiers never appear in replies or logs.
 
@@ -104,6 +109,10 @@ Roster rows show `1. [rank icon] **nickname**` using each member's original webs
 Roster buttons work only for the original requester. They disable at page boundaries and after expiry. Cached parsed roster count must match the profile count when available; partial rosters trigger a clear error. An empty confirmed clan produces an empty list. Logo failure leaves profile data readable and is logged.
 
 Clan profiles show the original clan logo first, followed by the clan name in the largest heading. Clan details come next, then an inline rank badge emoji followed by the verified website rank name, directly above Rank progress. The bot uploads or reuses the original `clan_<number>.png` badge as `pb_clan_rank_<number>`, separate from member rank emojis. If preparation fails, a link to the original badge stays beside the name. A compact progress bar appears beside the progress label and exact percentage; missing progress remains N/A. Overall match results pair win/loss counts with the site's displayed percentages. Discord Components V2 controls this ordering and Markdown text hierarchy, with a small source/timestamp footer. Missing values remain N/A.
+
+`/webstore` requires one of **Trending**, **New**, **Sale** or **Star**. The optional positive `page` chooses the starting catalogue page; omission starts on page one. It fetches `/webstore/more/best`, `/new`, `/sale` or `/star` under the same `/webstore/more/` prefix, adding `?page=2` for later pages. Five product cards appear per screen in website order, with original thumbnails, names linking to the product page, prices/currency, available tags, advertised discounts and explicit star ratings. Unknown prices, currencies, discounts and ratings show N/A. The header shows the upstream catalogue page/count and current item range. Previous/Next moves through all items and fetches another upstream page only when necessary. Only the requester can navigate; controls disable at boundaries and expire after two minutes by default. A failed later fetch keeps the current catalogue available and reports the error privately, permitting retry. Catalogue data uses the shared request gate and its own two-minute cache; cart, wishlist and purchase operations are outside this command.
+
+On October 12, 2026 (Asia/Jakarta), all four category endpoints returned usable public HTML; Trending page two and its final page also returned usable data. The initial New request encountered a connection reset before a subsequent successful request. Observed fixtures and the user's supplied index excerpt have separate provenance. Discord display verification requires invoking the registered command.
 
 ## Build, tests, and production
 

@@ -3,6 +3,7 @@ import { clanAutocomplete, type CommandContext } from '../commands/command.js';
 import { executeInfoClan } from '../commands/info-clan.command.js';
 import { activeRosters, executeInfoMember } from '../commands/info-member.command.js';
 import { executeInfoPlayer } from '../commands/info-player.command.js';
+import { activeWebstores, executeWebstore } from '../commands/webstore.command.js';
 import { publicError, safeError } from '../utils/errors.js';
 
 export async function handleInteraction(interaction: Interaction, context: CommandContext): Promise<void> {
@@ -15,11 +16,18 @@ export async function handleInteraction(interaction: Interaction, context: Comma
       }
       return;
     }
+    if (interaction.isButton() && interaction.customId.startsWith('webstore:')) {
+      if (!activeWebstores.has(interaction.message.id)) {
+        await interaction.reply({ content: 'This catalogue navigation expired. Run /webstore again.', flags: MessageFlags.Ephemeral });
+      }
+      return;
+    }
     if (!interaction.isChatInputCommand()) return;
     switch (interaction.commandName) {
       case 'info-clan': await executeInfoClan(interaction, context); break;
       case 'info-member': await executeInfoMember(interaction, context); break;
       case 'info-player': await executeInfoPlayer(interaction, context); break;
+      case 'webstore': await executeWebstore(interaction, context); break;
       default: await interaction.reply({ content: 'This command is unavailable. Refresh the bot commands.', flags: MessageFlags.Ephemeral });
     }
   } catch (error) {

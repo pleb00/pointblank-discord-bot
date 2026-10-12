@@ -4,6 +4,7 @@ import { loadClanConfig } from './config/clan-config.js';
 import { infoClanCommand } from './commands/info-clan.command.js';
 import { infoMemberCommand } from './commands/info-member.command.js';
 import { infoPlayerCommand } from './commands/info-player.command.js';
+import { webstoreCommand } from './commands/webstore.command.js';
 import { createLogger } from './utils/logger.js';
 import { publicError, safeError } from './utils/errors.js';
 import { registrationError, registrationRoute, verifyCommandRegistration } from './services/command-registration.service.js';
@@ -16,8 +17,8 @@ try {
   await loadClanConfig(env.CLANS_CONFIG_PATH);
   const rest = new REST({ version: '10' }).setToken(env.DISCORD_TOKEN);
   await verifyCommandRegistration(rest, env);
-  await rest.put(registrationRoute(env), { body: [infoClanCommand.toJSON(), infoMemberCommand.toJSON(), infoPlayerCommand.toJSON()] });
-  logger.info({ scope: env.DISCORD_GUILD_ID ? 'guild' : 'global' }, 'Registered /info-clan, /info-member and /info-player');
+  await rest.put(registrationRoute(env), { body: [infoClanCommand.toJSON(), infoMemberCommand.toJSON(), infoPlayerCommand.toJSON(), webstoreCommand.toJSON()] });
+  logger.info({ scope: env.DISCORD_GUILD_ID ? 'guild' : 'global' }, 'Registered /info-clan, /info-member, /info-player and /webstore');
 } catch (error) {
   const failure = env ? registrationError(error, env) : error;
   logger.error({ ...safeError(error), message: publicError(failure) }, 'Command registration failed');

@@ -1,5 +1,15 @@
 # Website verification record
 
+## Webstore verification, October 12, 2026
+
+Unauthenticated Axios requests returned usable HTML for all four `/webstore/more/` categories: best (Trending), new, sale and star. The final integration check used the actual PointBlankClient and WebstoreService: Trending returned ten products with eight pages; New returned five products with one page; Sale returned ten products with six pages; Star returned ten products with seven pages and ten explicit numeric ratings. Trending page two returned ten different products, and a separate observed request to its last page returned two products with disabled Next/Last navigation. An initial New connection reset was followed by a successful request; no login, purchase or wishlist endpoint was fetched.
+
+Full public pages define login-only shopping action functions. The original access guard treated their uninvoked login alerts/redirects as an inaccessible document. The catalogue-specific check now excludes only the exact five observed declarations from inspection; invoked actions, document redirects, login forms/markers, CAPTCHA and HTTP/access failures still raise clear errors. Scripts are never executed. Regression fixtures retain the declarations separately from minimized catalogue fixtures.
+
+Verified product selectors, currency asset paths and pagination contracts are documented in `docs/specs/webstore/design.md`. Currency icons identify PB Cash, Golden Ticket and Star Ticket; unrecognized values remain null/N/A. `tests/fixtures/webstore.provenance.md` distinguishes observed catalogue excerpts, the supplied index excerpt and synthetic variations. Live HTTP verification does not confirm the Discord command's display or registration.
+
+Final validation on Node.js 24.21.0 passed ESLint, strict typechecking, all 245 offline unit tests across 17 files and production compilation. No renderer changes were made.
+
 Date: October 11, 2026, Asia/Jakarta. Development host: Windows. Verification used a direct unauthenticated PowerShell Invoke-WebRequest with the exact supplied clan identifier constructed using percent encoding.
 
 ## Initial observations with the original identifier

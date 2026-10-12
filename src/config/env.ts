@@ -19,6 +19,7 @@ export const integrationEnvSchema = z.object({
   REQUEST_MAX_QUEUE_WAIT_MS: z.coerce.number().int().min(0).max(5000).default(2000),
   CLAN_CACHE_TTL_SECONDS: positiveInt(300),
   MEMBER_CACHE_TTL_SECONDS: positiveInt(120),
+  WEBSTORE_CACHE_TTL_SECONDS: positiveInt(120),
   LOGO_CACHE_TTL_SECONDS: positiveInt(1800),
   LOGO_TIMEOUT_MS: positiveInt(20_000),
   PAGINATION_TIMEOUT_SECONDS: z.coerce.number().int().min(10).max(600).default(120),
