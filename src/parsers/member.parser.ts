@@ -34,6 +34,8 @@ const rawDetailSchema = z.object({
   Death: z.unknown().optional(),
   Headshot: z.unknown().optional(),
   ClanName: z.unknown().optional(),
+  ClanTroops: z.unknown().optional(),
+  ClanExpRank: z.unknown().optional(),
 });
 
 export function normalizeMemberDetail(raw: unknown, member: ClanMember): MemberDetail {
@@ -48,6 +50,8 @@ export function normalizeMemberDetail(raw: unknown, member: ClanMember): MemberD
     headshots: parseInteger(data.Headshot),
     rankIconUrl: member.rankIconUrl,
     clanName: typeof data.ClanName === 'string' && data.ClanName.trim() ? data.ClanName : null,
+    clanMemberCount: parseInteger(data.ClanTroops),
+    clanRanking: parseInteger(data.ClanExpRank),
   };
   if ([detail.exp, detail.kills, detail.deaths, detail.headshots].every(value => value === null)) {
     throw new AppError('UNEXPECTED_JSON', 'Point Blank did not return usable player statistics.');

@@ -19,7 +19,7 @@ export async function createApplication(env: Environment): Promise<CommandContex
   const gate = new RequestGate(env.POINTBLANK_MIN_REQUEST_INTERVAL_MS, env.REQUEST_MAX_QUEUE_WAIT_MS);
   const client = new PointBlankClient(env, gate, logger);
   const clans = new ClanService(client, env.POINTBLANK_BASE_URL, env.CLAN_CACHE_TTL_SECONDS * 1000, logger);
-  const members = new MemberService(clans, client, logger);
+  const members = new MemberService(client, env.POINTBLANK_BASE_URL, logger);
   const logos = new LogoService(new ClanLogoRenderer(env.LOGO_TIMEOUT_MS, gate), env.LOGO_CACHE_TTL_SECONDS * 1000);
   const emojiRest = new REST({ version: '10', timeout: env.REQUEST_TIMEOUT_MS, retries: env.REQUEST_MAX_RETRIES }).setToken(env.DISCORD_TOKEN);
   const rankEmojis = new RankEmojiService(new RankEmojiClient(emojiRest, env.DISCORD_CLIENT_ID), new RankIconClient(env.REQUEST_TIMEOUT_MS), logger);

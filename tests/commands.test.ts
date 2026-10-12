@@ -3,7 +3,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ChatInputCommandInteraction, Interaction } from 'discord.js';
 import { MessageFlags, TextDisplayBuilder } from 'discord.js';
 import { executeInfoClan } from '../src/commands/info-clan.command.js';
-import { activeRosters, executeInfoMember, stopRosters } from '../src/commands/info-member.command.js';
+import { activeRosters, executeInfoMember, infoMemberCommand, stopRosters } from '../src/commands/info-member.command.js';
+import { infoPlayerCommand } from '../src/commands/info-player.command.js';
+import { infoClanCommand } from '../src/commands/info-clan.command.js';
 import type { CommandContext } from '../src/commands/command.js';
 import type { ClanMember } from '../src/models/member.model.js';
 import { ClanRegistry, validateClanConfig } from '../src/config/clan-config.js';
@@ -38,7 +40,7 @@ function setup(commandName = 'info-member', options: Record<string, string | nul
       getSnapshot: vi.fn().mockResolvedValue({ info: parseClanHtml(fixtureHtml, clan, baseUrl), html: fixtureHtml, sourceUrl: `${baseUrl}/clan/myclan` }),
       getRoster: vi.fn().mockResolvedValue({ info: { name: 'Hepatica' }, members: Array.from({ length: 31 }, (_, i) => ({ nickname: `Member ${i}`, env: `id${i}`, rankIconUrl: `${baseUrl}/images/common/icon_ranking/rank_46.png` })) }),
     },
-    members: { getDetail: vi.fn().mockResolvedValue({ nickname: 'pLebb', exp: 1, kills: 2, deaths: 3, headshots: 4, rankIconUrl: null, clanName: 'Hepatica' }) },
+    members: { getPlayer: vi.fn().mockResolvedValue({ nickname: 'pLebb', ranking: 71209, exp: 3789431, rankName: 'Brigadier', rankIconUrl: null, kills: 21053, deaths: 11687, headshots: 18968, killDeathRatio: 21053 / 11687, headshotRatio: 18968 / 21053 * 100, clanName: 'AutoWin', clanMemberCount: 28, clanRanking: 1391886 }) },
     logos: { getLogo: vi.fn().mockResolvedValue(Buffer.from('image')) },
     rankEmojis: {
       forMembers: vi.fn().mockResolvedValue(new Map([[`${baseUrl}/images/common/icon_ranking/rank_46.png`, '<:pb_rank_46:123456789012345678>']])),
@@ -53,6 +55,17 @@ function setup(commandName = 'info-member', options: Record<string, string | nul
 afterEach(() => { stopRosters(); });
 
 describe('Discord command workflows', () => {
+  it('defines clan profiles, clan rosters and player searches as separate commands', () => {
+    const commands = [infoClanCommand, infoMemberCommand, infoPlayerCommand].map(command => command.toJSON());
+    expect(commands.map(command => ({ name: command.name, options: command.options?.map(option => option.name) }))).toEqual([
+      { name: 'info-clan', options: ['clan'] },
+      { name: 'info-member', options: ['clan'] },
+      { name: 'info-player', options: ['nick'] },
+    ]);
+    expect(commands[0]!.options![0]!.required).not.toBe(true);
+    expect(commands[1]!.options![0]!.required).not.toBe(true);
+    expect(commands[2]!.options![0]!.required).toBe(true);
+  });
   it('defers a clan command and still edits a readable profile if rendering fails', async () => {
     const { interaction, context } = setup('info-clan');
     context.logos.getLogo.mockRejectedValue(new Error('raw-secret-render-error'));
@@ -72,12 +85,19 @@ describe('Discord command workflows', () => {
     const payload = interaction.editReply.mock.calls[0]![0] as ReturnType<typeof clanProfile>;
     expect(JSON.stringify(payload.components[0]!.toJSON())).toContain(`[Rank badge](${baseUrl}/images/common/icon_ranking/clan_34.png) Recon Battalion`);
   });
-  it('routes nick to individual details and skips roster pagination', async () => {
-    const { interaction, context, message } = setup('info-member', { nick: 'pLebb' });
-    await executeInfoMember(interaction as unknown as ChatInputCommandInteraction, context as unknown as CommandContext);
-    expect(context.members.getDetail).toHaveBeenCalledWith(clan, 'pLebb');
+  it('routes /info-player to nickname search and skips roster pagination', async () => {
+    const { interaction, context, message } = setup('info-player', { nick: 'pLebb' });
+    await handleInteraction(interaction as unknown as Interaction, context as unknown as CommandContext);
+    expect(context.members.getPlayer).toHaveBeenCalledExactlyOnceWith('pLebb');
+    expect(context.clans.getRoster).not.toHaveBeenCalled();
     expect(context.rankEmojis.forMembers).not.toHaveBeenCalled();
     expect(message.createMessageComponentCollector).not.toHaveBeenCalled();
+  });
+  it('routes /info-member clan to its roster without a player search', async () => {
+    const { interaction, context } = setup('info-member', { clan: 'hepatica' });
+    await handleInteraction(interaction as unknown as Interaction, context as unknown as CommandContext);
+    expect(context.clans.getRoster).toHaveBeenCalledExactlyOnceWith(clan);
+    expect(context.members.getPlayer).not.toHaveBeenCalled();
   });
   it('restricts navigation to requester and disables expired controls', async () => {
     const { interaction, context, collector, message } = setup();
@@ -186,6 +206,6 @@ describe('interaction error handling', () => {
     const reply = vi.fn().mockResolvedValue(undefined);
     const stale = { isAutocomplete: () => false, isButton: () => true, customId: 'roster:old:next', message: { id: 'old-message' }, reply };
     await handleInteraction(stale as unknown as Interaction, context as unknown as CommandContext);
-    expect(reply).toHaveBeenCalledWith(expect.objectContaining({ content: expect.stringContaining('expired') }));
+    expect(reply).toHaveBeenCalledWith(expect.objectContaining({ content: 'This roster navigation expired. Run /info-member again.' }));
   });
 });

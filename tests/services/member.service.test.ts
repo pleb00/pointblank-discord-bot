@@ -5,7 +5,7 @@ import type { PointBlankClient } from '../../src/clients/pointblank.client.js';
 import type { ClanMember } from '../../src/models/member.model.js';
 import { parseMemberList } from '../../src/parsers/member.parser.js';
 import { createLogger } from '../../src/utils/logger.js';
-import { baseUrl, clan, detailJson, fixtureHtml } from '../helpers.js';
+import { baseUrl, clan, emptyPlayerSearchHtml, fixtureHtml, playerDetailJson, playerSearchHtml } from '../helpers.js';
 
 describe('roster rank ordering', () => {
   // Synthetic members exercise numeric asset ordering, not a verified rank-name hierarchy.
@@ -51,9 +51,12 @@ describe('nickname matching', () => {
 
 describe('services', () => {
   function setup(html = fixtureHtml) {
-    const client = { getClanHtml: vi.fn().mockResolvedValue(html), getMemberDetail: vi.fn().mockResolvedValue(detailJson) };
+    const client = {
+      getClanHtml: vi.fn().mockResolvedValue(html), getPlayerSearchHtml: vi.fn().mockResolvedValue(playerSearchHtml),
+      getMemberDetail: vi.fn().mockResolvedValue(playerDetailJson),
+    };
     const clans = new ClanService(client as unknown as PointBlankClient, baseUrl, 300_000);
-    const members = new MemberService(clans, client as unknown as PointBlankClient, createLogger('silent'));
+    const members = new MemberService(client as unknown as PointBlankClient, baseUrl, createLogger('silent'));
     return { client, clans, members };
   }
   it('deduplicates clan fetches and shares the snapshot with the roster', async () => {
@@ -61,17 +64,53 @@ describe('services', () => {
     await Promise.all([clans.getSnapshot(clan), clans.getRoster(clan)]);
     expect(client.getClanHtml).toHaveBeenCalledTimes(1);
   });
-  it('looks up the roster ID and uses that ID for the detail request', async () => {
+  it('fetches details only for the matched search identifier and preserves HTML rank information', async () => {
     const { client, members } = setup();
-    const detail = await members.getDetail(clan, 'plebb');
-    expect(client.getMemberDetail).toHaveBeenCalledWith(parseMemberList(fixtureHtml, baseUrl)[0]!.env);
+    const detail = await members.getPlayer('pLebb');
+    expect(client.getPlayerSearchHtml).toHaveBeenCalledExactlyOnceWith('pLebb');
+    expect(client.getMemberDetail).toHaveBeenCalledExactlyOnceWith('search%2Bid%2F%3D%3D');
+    expect(client.getClanHtml).not.toHaveBeenCalled();
     expect(detail.nickname).toBe('pLebb');
     expect(detail.rankIconUrl).toContain('rank_46');
+    expect(detail).toMatchObject({ ranking: 71209, rankName: 'Brigadier', exp: 3789431, kills: 21053, deaths: 11687, headshots: 18968, clanName: 'AutoWin', clanMemberCount: 28, clanRanking: 1391886 });
+    expect(detail.killDeathRatio).toBeCloseTo(21053 / 11687);
+    expect(detail.headshotRatio).toBeCloseTo(18968 / 21053 * 100);
+    expect(detail).not.toHaveProperty('env');
   });
-  it('does not call detail endpoint for missing members', async () => {
+  it('rejects partial nicknames even if the upstream response contains a longer nickname', async () => {
     const { client, members } = setup();
-    await expect(members.getDetail(clan, 'missing')).rejects.toThrow('not found');
+    await expect(members.getPlayer('pLeb')).rejects.toThrow('complete nickname');
     expect(client.getMemberDetail).not.toHaveBeenCalled();
+  });
+  it('does not call the detail endpoint for an explicit no-match result', async () => {
+    const { client, members } = setup();
+    client.getPlayerSearchHtml.mockResolvedValue(emptyPlayerSearchHtml);
+    await expect(members.getPlayer('pLeb')).rejects.toThrow('not found');
+    expect(client.getMemberDetail).not.toHaveBeenCalled();
+  });
+  it('does not choose between ambiguous player identifiers', async () => {
+    const { client, members } = setup();
+    // Synthetic duplicated search row with a distinct identifier.
+    const row = playerSearchHtml.match(/<div class="r_tr">[\s\S]*?\n {4}<\/div>/)![0];
+    client.getPlayerSearchHtml.mockResolvedValue(playerSearchHtml.replace(row, row + row.replace('search%2Bid%2F%3D%3D', 'other')));
+    await expect(members.getPlayer('pLebb')).rejects.toThrow('More than one');
+    expect(client.getMemberDetail).not.toHaveBeenCalled();
+  });
+  it('rejects changed search markup before requesting player details', async () => {
+    const { client, members } = setup();
+    client.getPlayerSearchHtml.mockResolvedValue(playerSearchHtml.replace('data-env=', 'data-changed='));
+    await expect(members.getPlayer('pLebb')).rejects.toThrow('page structure');
+    expect(client.getMemberDetail).not.toHaveBeenCalled();
+  });
+  it('propagates detail request failures instead of claiming a complete player profile', async () => {
+    const { client, members } = setup();
+    client.getMemberDetail.mockRejectedValue(new Error('test-detail-unavailable'));
+    await expect(members.getPlayer('pLebb')).rejects.toThrow('test-detail-unavailable');
+  });
+  it('does not use the search EXP to hide a missing detail EXP', async () => {
+    const { client, members } = setup();
+    client.getMemberDetail.mockResolvedValue({ Kill: '100', Death: '20', Headshot: '25' });
+    expect(await members.getPlayer('pLebb')).toMatchObject({ exp: null, kills: 100, deaths: 20, headshots: 25, clanName: null, clanMemberCount: null, clanRanking: null, killDeathRatio: 5, headshotRatio: 25 });
   });
   it('detects incomplete roster without blocking the profile command', async () => {
     const { clans } = setup(fixtureHtml.replace('<font>3</font>', '<font>91</font>'));

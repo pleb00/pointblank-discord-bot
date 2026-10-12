@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { ComponentType, MessageFlags } from 'discord.js';
 import { clanProfile } from '../src/embeds/clan-profile.js';
-import { memberEmbed } from '../src/embeds/member.embed.js';
+import { playerEmbed } from '../src/embeds/player.embed.js';
 import { rosterPage } from '../src/embeds/roster.embed.js';
 import { parseClanHtml } from '../src/parsers/clan.parser.js';
-import { baseUrl, clan, fixtureHtml } from './helpers.js';
+import { normalizePlayerDetail, parsePlayerSearch } from '../src/parsers/player.parser.js';
+import { baseUrl, clan, fixtureHtml, playerDetailJson, playerSearchHtml } from './helpers.js';
 
 function clanText(output: ReturnType<typeof clanProfile>): string {
   return output.components[0]!.toJSON().components.flatMap(component => {
@@ -87,9 +88,38 @@ describe('Discord presentation', () => {
     expect(clanText(output)).not.toContain('@everyone');
     expect(output.allowedMentions.parse).toEqual([]);
   });
-  it('uses the roster rank icon for the individual thumbnail', () => {
-    const output = memberEmbed({ nickname: 'pLebb', exp: 9040962, kills: null, deaths: 0, headshots: 1, rankIconUrl: `${baseUrl}/rank.png`, clanName: null }, 'Hepatica');
-    expect(output.embeds[0]!.toJSON().thumbnail!.url).toBe(`${baseUrl}/rank.png`);
-    expect(output.embeds[0]!.toJSON().fields![0]!.value).toBe('9,040,962');
+  it('groups every requested player and clan statistic without exposing the identifier', () => {
+    const player = parsePlayerSearch(playerSearchHtml, baseUrl)[0]!;
+    const output = playerEmbed(normalizePlayerDetail(playerDetailJson, player));
+    const embed = output.embeds[0]!.toJSON();
+    expect(embed.thumbnail!.url).toBe(`${baseUrl}/images/common/icon_ranking/rank_46.png`);
+    expect(embed.fields).toEqual([
+      { name: 'Player Info', value: '**Game Ranking:** 71,209\n**Rank:** Brigadier\n**Total EXP:** 3,789,431\n\n**Kill:** 21,053\n**Death:** 11,687\n**Kill/Death Ratio:** 1.80\n\n**Headshot:** 18,968\n**Headshot Ratio:** 90.10%' },
+      { name: 'Clan Info', value: '**Name:** AutoWin\n**Members:** 28\n**Ranking:** 1,391,886' },
+    ]);
+    expect(JSON.stringify(embed)).not.toContain(player.env);
+    expect(output.allowedMentions.parse).toEqual([]);
+  });
+  it('shows unavailable fields and undefined ratios as N/A and omits an unavailable icon', () => {
+    const player = { nickname: '**@everyone**', env: 'synthetic', ranking: null, rankName: null, exp: null, rankIconUrl: null };
+    const output = playerEmbed(normalizePlayerDetail({ Kill: '0', Death: '0' }, player));
+    const embed = output.embeds[0]!.toJSON();
+    expect(embed.fields![0]!.value).toContain('**Kill/Death Ratio:** N/A');
+    expect(embed.fields![0]!.value).toContain('**Headshot Ratio:** N/A');
+    expect(embed.fields![0]!.value).toContain('**Kill:** 0\n**Death:** 0');
+    expect(embed.fields![1]!.value).toBe('**Name:** N/A\n**Members:** N/A\n**Ranking:** N/A');
+    expect(embed.thumbnail).toBeUndefined();
+    expect(embed.title).not.toContain('@everyone');
+  });
+  it('escapes upstream text and bounds each grouped field within Discord limits', () => {
+    const longName = '**@everyone**' + '😀'.repeat(3000);
+    const player = { nickname: longName, env: 'synthetic', ranking: null, rankName: longName, exp: null, rankIconUrl: null };
+    const output = playerEmbed(normalizePlayerDetail({ Exp: '0', ClanName: longName }, player));
+    const embed = output.embeds[0]!.toJSON();
+    expect(embed.title!.length).toBeLessThanOrEqual(256);
+    expect(embed.fields!.every(field => field.value.length <= 1024)).toBe(true);
+    expect(output.embeds[0]!.length).toBeLessThanOrEqual(6000);
+    expect(JSON.stringify(embed)).not.toContain('@everyone');
+    expect(output.allowedMentions.parse).toEqual([]);
   });
 });

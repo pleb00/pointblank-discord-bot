@@ -22,9 +22,16 @@ export function memberUrl(baseUrl: string, encodedEnv: string): URL {
   return url;
 }
 
+export function playerSearchUrl(baseUrl: string, nickname: string): URL {
+  const url = new URL('/ranking/individual', baseUrl);
+  url.searchParams.set('termtype', '3');
+  url.searchParams.set('keyword', nickname);
+  return url;
+}
+
 export function assertAccessibleHtml(html: string): void {
   if (/Login dibutuhkan|(?:document|window)\.location[^;]*["']\/login\b|<form[^>]+(?:action=["'][^"']*login)/i.test(html)) {
-    throw new AppError('ACCESS_REQUIRED', 'Point Blank requires login for this page. Public clan data is currently unavailable.');
+    throw new AppError('ACCESS_REQUIRED', 'Point Blank requires login for this page. Public data is currently unavailable.');
   }
   if (/g-recaptcha|h-captcha|cf-chl-|challenge-platform/i.test(html)) {
     throw new AppError('ACCESS_REQUIRED', 'Point Blank is requiring an access verification. Please try again later.');
@@ -33,6 +40,7 @@ export function assertAccessibleHtml(html: string): void {
 
 export class PointBlankClient {
   private readonly details: AsyncCache<unknown>;
+  private readonly searches: AsyncCache<string>;
   private readonly http: AxiosInstance;
   private blockedUntil = 0;
 
@@ -43,6 +51,7 @@ export class PointBlankClient {
     http?: AxiosInstance,
   ) {
     this.details = new AsyncCache(env.MEMBER_CACHE_TTL_SECONDS * 1000);
+    this.searches = new AsyncCache(env.MEMBER_CACHE_TTL_SECONDS * 1000);
     this.http = http ?? axios.create({
       timeout: env.REQUEST_TIMEOUT_MS,
       maxRedirects: 3,
@@ -53,10 +62,22 @@ export class PointBlankClient {
       headers: { 'User-Agent': 'PointBlankClanDiscordBot/1.0', Accept: 'text/html, application/json' },
       beforeRedirect: options => {
         const base = new URL(env.POINTBLANK_BASE_URL);
-        if (options.hostname !== base.hostname || options.protocol !== 'https:' || !options.path?.startsWith('/clan/')) {
-          throw new AppError('ACCESS_REQUIRED', 'Point Blank redirected away from the public clan endpoint.');
+        const path = new URL(options.path ?? '/', base).pathname;
+        if (options.hostname !== base.hostname || options.protocol !== 'https:'
+          || (!path.startsWith('/clan/') && path !== '/ranking/individual')) {
+          throw new AppError('ACCESS_REQUIRED', 'Point Blank redirected away from the public data endpoints.');
         }
       },
+    });
+  }
+
+  getPlayerSearchHtml(nickname: string): Promise<string> {
+    const url = playerSearchUrl(this.env.POINTBLANK_BASE_URL, nickname);
+    return this.searches.get(url.href, async () => {
+      const html = await this.request(url, 'player-search');
+      assertAccessibleHtml(html);
+      if (!/<[a-z][\s\S]*>/i.test(html)) throw new AppError('UNEXPECTED_HTML', 'Point Blank returned an unexpected player search response.');
+      return html;
     });
   }
 
@@ -82,7 +103,7 @@ export class PointBlankClient {
     });
   }
 
-  private async request(url: URL, endpoint: 'clan' | 'member'): Promise<string> {
+  private async request(url: URL, endpoint: 'clan' | 'member' | 'player-search'): Promise<string> {
     // Cache only a circuit-breaker flag for 401/403; never cache raw errors or credentials.
     if (this.blockedUntil > Date.now()) throw new AppError('ACCESS_REQUIRED', 'Point Blank requires access verification. Public data is currently unavailable.');
     for (let attempt = 0; attempt <= this.env.REQUEST_MAX_RETRIES; attempt++) {

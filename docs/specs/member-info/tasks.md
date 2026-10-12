@@ -11,5 +11,13 @@
 - [x] Sort roster by validated rank asset number descending before pagination; preserve ties, place unavailable ranks last, and cover ordering across navigation and expiry offline.
 - [x] Add offline parser/service/HTTP/presentation tests.
 - [x] Verify the actual roster container and all 91 members on the corrected public link.
-- [ ] Verify real extracted identifier and corresponding detail payload.
+- [x] Keep /info-clan {clan} and /info-member {clan}; move only nickname lookup to /info-player {nick}. Register/dispatch all three commands and keep roster expiry messages on /info-member.
+- [x] Search complete nicknames independently of clan rosters with fixed termtype=3 and URLSearchParams.
+- [x] Parse game ranking, nickname, rank name/icon and search EXP from verified/supplied ranking HTML; use only the matched data-env to fetch detail JSON.
+- [x] Distinguish explicit no matches from changed required selectors; cover incomplete nicknames and unavailable fields offline.
+- [x] Cache/deduplicate search requests and share the existing HTTP/access/rate-limit safeguards.
+- [x] Verify real extracted identifier and corresponding detail payload.
+- [x] Combine detail counters/clan fields with the search rank; calculate K/D and headshot percentage with null-safe denominators.
+- [x] Group the reply into readable Player Info and Clan Info fields with numeric formatting, escaped text and Discord bounds.
+- [x] Cover supplied detail examples, partial/unusable payloads, zero denominators, identity preservation and the deduplicated two-step workflow offline.
 - [ ] Smoke test commands and navigation in a Discord test server.

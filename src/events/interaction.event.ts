@@ -2,6 +2,7 @@ import { MessageFlags, TextDisplayBuilder, type Interaction } from 'discord.js';
 import { clanAutocomplete, type CommandContext } from '../commands/command.js';
 import { executeInfoClan } from '../commands/info-clan.command.js';
 import { activeRosters, executeInfoMember } from '../commands/info-member.command.js';
+import { executeInfoPlayer } from '../commands/info-player.command.js';
 import { publicError, safeError } from '../utils/errors.js';
 
 export async function handleInteraction(interaction: Interaction, context: CommandContext): Promise<void> {
@@ -18,6 +19,7 @@ export async function handleInteraction(interaction: Interaction, context: Comma
     switch (interaction.commandName) {
       case 'info-clan': await executeInfoClan(interaction, context); break;
       case 'info-member': await executeInfoMember(interaction, context); break;
+      case 'info-player': await executeInfoPlayer(interaction, context); break;
       default: await interaction.reply({ content: 'This command is unavailable. Refresh the bot commands.', flags: MessageFlags.Ephemeral });
     }
   } catch (error) {

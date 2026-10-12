@@ -1,6 +1,7 @@
 import { escapeMarkdown } from 'discord.js';
 
 const numberFormatter = new Intl.NumberFormat('en-US');
+const ratioFormatter = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export function parseInteger(value: unknown): number | null {
   if (typeof value === 'number') return Number.isSafeInteger(value) && value >= 0 ? value : null;
@@ -13,6 +14,10 @@ export function parseInteger(value: unknown): number | null {
 
 export function formatNumber(value: number | null): string {
   return value === null ? 'N/A' : numberFormatter.format(value);
+}
+
+export function formatRatio(value: number | null, percentage = false): string {
+  return value === null || !Number.isFinite(value) ? 'N/A' : `${ratioFormatter.format(value)}${percentage ? '%' : ''}`;
 }
 
 export function formatPercentage(value: number | null): string {

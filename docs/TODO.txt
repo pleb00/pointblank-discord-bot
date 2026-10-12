@@ -16,16 +16,16 @@ TODO — Planned features
     [ ] Show when data was fetched; handle missing fields and unavailable items clearly.
     [ ] Verify selectors and add offline fixtures before implementation. Handle login/CAPTCHA and upstream rate limits explicitly.
 
-[ ] 3. Direct nickname lookup for /info-member
+[x] 3. Direct nickname lookup for /info-player (split from /info-member nick)
     Goal: Look up a specific player through individual ranking search, without requiring a match in the configured clan roster.
-    [ ] Verify the proposed lookup flow and the actual response fields:
+    [x] Verify the lookup flow and the actual HTML response fields:
         Search: https://www.pointblank.id/ranking/individual?termtype=3&keyword=<nickname>
         Detail: https://www.pointblank.id/clan/detail?div=1&env=<uniqueId>
-    [ ] Extract the uniqueId from the matched search result and confirm that it is the identifier accepted by the detail endpoint. Never construct or guess it.
-    [ ] Prefer an exact nickname match; handle ambiguous results and no matches clearly. Preserve case, punctuation, spaces, Unicode, and plus signs.
-    [ ] Build query parameters with URLSearchParams and decode encoded identifiers once at the HTTP boundary.
-    [ ] Use only verified rank names/icons and statistics; missing numeric values remain null internally and N/A in the reply.
-    [ ] Keep /info-member without a nickname as the existing clan roster view. Decide how the optional clan argument should behave during direct lookup.
+    [x] Extract data-env from the matched search result, verify it against the detail endpoint and fetch detail JSON using GET div=1. Never construct or guess it.
+    [x] Prefer an exact nickname match; handle ambiguous results and no matches clearly. Preserve case, punctuation, spaces, Unicode, and plus signs. Do not accept incomplete nicknames.
+    [x] Build query parameters with fixed termtype=3 and URLSearchParams; retain one-time decoding at the detail HTTP boundary.
+    [x] Present the HTML game ranking/nickname/rank and JSON total EXP/combat/clan counters; calculate K/D and headshot ratio with null-safe denominators. Group Player Info and Clan Info readably; missing values remain null internally and N/A in the reply.
+    [x] Keep /info-member {clan} as the clan roster view, /info-clan {clan} as the profile view and /info-player {nick} as the independent player search. Remove only the old member nickname option; player nick is required.
 
 [ ] For each feature when implementation starts
     [ ] Update the relevant requirements/design/tasks and README to describe the final behavior.
